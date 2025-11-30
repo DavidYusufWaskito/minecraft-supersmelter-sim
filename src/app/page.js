@@ -319,7 +319,7 @@ export default function Home() {
 												(furnaceObj.burnTime / furnaceBurnTime) * 100
 											}%`,
 										}}
-									>{furnaceObj.burnTime}</div>
+									></div>
 								</div>
 							)}
 						</div>
