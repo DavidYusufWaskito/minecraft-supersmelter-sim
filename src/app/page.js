@@ -1,65 +1,231 @@
+"use client";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+
+class furnaceObj {
+	constructor(item, fuel, active = false, progress = 0, burnTime = 80) {
+		this.item = item;
+		this.fuel = fuel;
+		this.active = active;
+		this.progress = progress; // progress timer nya (max 10)
+		this.burnTime = burnTime;
+	}
+}
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const [smeltedCount, setSmeltedCount] = useState(0);
+
+	const [furnace, setFurnace] = useState(16);
+	const [items, setItems] = useState(128);
+	const [fuel, setFuel] = useState(16);
+
+	//modifier
+
+	// furnace durations in seconds
+	const [furnaceDuration, setFurnaceDuration] = useState(10);
+	const [furnaceBurnTime, setFurnaceBurnTime] = useState(furnaceDuration * 8);
+
+	// const [furnaceTime, setFurnaceTime] = useState(0);
+
+	// is it smelting or nah?
+	const [isSmelting, setIsSmelting] = useState(false);
+
+	// allocate furnaceObj to furnace count
+	const [furnaces, setFurnaces] = useState(
+		Array.from(
+			{ length: furnace },
+			() => new furnaceObj(0, 0, false, 0, furnaceBurnTime)
+		)
+	);
+
+	function setFurnaceItem(i, val) {
+		setFurnaces((prev) => {
+			const copy = [...prev];
+			copy[i] = {
+				...copy[i],
+				item: val,
+			};
+			return copy;
+		});
+	}
+
+	function setFurnaceFuel(i, val) {
+		setFurnaces((prev) => {
+			const copy = [...prev];
+			copy[i] = {
+				...copy[i],
+				fuel: val,
+			};
+			return copy;
+		});
+	}
+
+	function setFurnaceActive(i, val) {
+		setFurnaces((prev) => {
+			const copy = [...prev];
+			copy[i] = {
+				...copy[i],
+				active: val,
+			};
+			return copy;
+		});
+	}
+
+	function setFurnaceProgress(i, val) {
+		setFurnaces((prev) => {
+			const copy = [...prev];
+			copy[i] = {
+				...copy[i],
+				progress: val,
+			};
+			return copy;
+		});
+	}
+
+	// set furnace round-robin
+	useEffect(() => {
+		// buat array kosong
+		const newFurnaces = Array.from(
+			{ length: furnace },
+			() => new furnaceObj(0, 0)
+		);
+
+		// bagi fuel secara round robin
+		for (let i = 0; i < fuel; i++) {
+			const idx = i % furnace;
+			newFurnaces[idx].fuel += 1;
+		}
+
+		// bagi items secara round robin
+		for (let i = 0; i < items; i++) {
+			let idx = i % furnace;
+			if (fuel < furnace) {
+				idx = i % fuel;
+			}
+			// hanya masuk ketika ada fuel
+			newFurnaces[idx].item += 1;
+		}
+
+		// update state sekali saja
+		setFurnaces(newFurnaces);
+	}, [furnace, items, fuel]);
+
+	useEffect(() => {
+		if (!isSmelting) return;
+
+    let smeltedCount = 0;
+		// aktifkan semua furnace yang item > 0 dan fuel > 0
+		setFurnaces((prev) =>
+			prev.map((f) => ({
+				...f,
+				fuel: f.fuel > 0 ? f.fuel - 1 : 0,
+				active: f.item > 0 && f.fuel > 0,
+				progress: 0,
+				burnTime: furnaceBurnTime,
+			}))
+		);
+		const interval = setInterval(() => {
+			setFurnaces((prev) => {
+				const updated = prev.map((f) => {
+					if (!f.active) return f;
+
+					// 1. STOP jika burnTime habis
+					if (f.burnTime <= 0) {
+						return {
+							...f,
+							active: false,
+							progress: 0,
+						};
+					}
+
+					// 2. Jika progress selesai smelting 1 item
+					if (f.progress + 1 >= furnaceDuration) {
+            smeltedCount += 1;
+						return {
+							...f,
+							item: f.item - 1,
+							progress: 0,
+							burnTime: f.burnTime - 1,
+							active: f.item - 1 > 0 && f.burnTime - 1 > 0,
+						};
+					}
+
+					// 3. Default
+					return {
+						...f,
+						progress: f.progress + 1,
+						burnTime: f.burnTime - 1,
+					};
+				});
+
+				// setelah update → CEK semua furnace mati
+				const allDead = updated.every((f) => !f.active);
+
+				if (allDead) {
+					// matikan smelting
+					setIsSmelting(false);
+
+          // update smeltedCount
+          setSmeltedCount(smeltedCount);
+				}
+
+				return updated;
+			});
+		}, 1000);
+
+		return () => clearInterval(interval);
+	}, [isSmelting, furnaceDuration]);
+
+	return (
+		<div className="grid place-items-center h-screen md:mx-80 bg-gray-800">
+			<div className="flex flex-wrap gap-3 mb-3">
+				{furnaces.map((furnaceObj, index) => (
+					<div
+						key={index}
+						className="relative pb-6 bg-white/30 border border-gray-300 rounded-lg shadow-lg backdrop-blur-sm"
+					>
+						<span className="absolute top-[-1] right-0 text-sm">
+							{index + 1}
+						</span>
+						<div className="px-6 pt-6 mb-3">
+							<span>{furnaceObj.item}</span>
+							<hr />
+							<span>{furnaceObj.fuel}</span>
+						</div>
+
+						{isSmelting && furnaceObj.active && (
+							<div className="w-full h-1 bg-gray-200 rounded-full">
+								<div
+									className="h-full bg-green-500 rounded-full"
+									style={{
+										width: `${(furnaceObj.progress / furnaceDuration) * 100}%`,
+									}}
+								></div>
+
+								<div
+									className="h-full bg-red-500 rounded-full"
+									style={{
+										width: `${(furnaceObj.burnTime / furnaceBurnTime) * 100}%`,
+									}}
+								></div>
+							</div>
+						)}
+					</div>
+				))}
+			</div>
+			<div>
+				<span>Is smelting : {isSmelting ? "true" : "false"}</span>
+				<span>Cooked item : {smeltedCount}</span>
+				<div className="flex justify-center">
+					{/* Tombol aktifkan smelting */}
+					<button
+						className="bg-gray-600 active:bg-gray-700 cursor-pointer p-3 rounded-lg"
+						onClick={() => setIsSmelting(true)}
+					>
+						Run Furnace!
+					</button>
+				</div>
+			</div>
+		</div>
+	);
 }
