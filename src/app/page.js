@@ -38,24 +38,30 @@ export default function Home() {
 		)
 	);
 
+
+	const [editDuration, setEditDuration] = useState(furnaceDuration);
 	const applySettings = () => {
+		let _fuels = fuel;
+		let _items = items;
+		let _furnace = furnace;
+		let _burnTime = furnaceBurnTime;
 		// buat array kosong
 		const newFurnaces = Array.from(
-			{ length: furnace },
-			() => new furnaceObj(0, 0, false, 0, furnaceBurnTime)
+			{ length: _furnace },
+			() => new furnaceObj(0, 0, false, 0, _burnTime)
 		);
 
 		// bagi fuel secara round robin
-		for (let i = 0; i < fuel; i++) {
-			const idx = i % furnace;
+		for (let i = 0; i < _fuels; i++) {
+			const idx = i % _furnace;
 			newFurnaces[idx].fuel += 1;
 		}
 
 		// bagi items secara round robin
-		for (let i = 0; i < items; i++) {
-			let idx = i % furnace;
-			if (fuel < furnace) {
-				idx = i % fuel;
+		for (let i = 0; i < _items; i++) {
+			let idx = i % _furnace;
+			if (_fuels < _furnace) {
+				idx = i % _fuels;
 			}
 			// hanya masuk ketika ada fuel
 			newFurnaces[idx].item += 1;
@@ -63,6 +69,7 @@ export default function Home() {
 
 		// update state sekali saja
 		setFurnaces(newFurnaces);
+		setFurnaceDuration(editDuration);
 	};
 
 	function resetFurnaces() {
@@ -174,7 +181,7 @@ export default function Home() {
 							fuel: f.fuel > 0 ? f.fuel - 1 : 0,
 							burnTime: furnaceBurnTime,
 							progress: 0,
-              active: f.fuel > 0,
+							active: f.fuel > 0,
 						};
 					}
 
@@ -263,8 +270,8 @@ export default function Home() {
 						Durasi Smelting (detik)
 						<input
 							type="number"
-							value={furnaceDuration}
-							onChange={(e) => setFurnaceDuration(Number(e.target.value))}
+							value={editDuration}
+							onChange={(e) => setEditDuration(Number(e.target.value))}
 							className="mt-1 p-2 rounded bg-gray-800 border border-gray-700"
 						/>
 					</label>
@@ -312,8 +319,7 @@ export default function Home() {
 												(furnaceObj.burnTime / furnaceBurnTime) * 100
 											}%`,
 										}}
-									>
-									</div>
+									>{furnaceObj.burnTime}</div>
 								</div>
 							)}
 						</div>
