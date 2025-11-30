@@ -13,10 +13,10 @@ class furnaceObj {
 }
 
 export default function Home() {
-  const [smeltedCount, setSmeltedCount] = useState(0);
+	const [smeltedCount, setSmeltedCount] = useState(0);
 
 	const [furnace, setFurnace] = useState(16);
-	const [items, setItems] = useState(128);
+	const [items, setItems] = useState(64);
 	const [fuel, setFuel] = useState(16);
 
 	//modifier
@@ -37,6 +37,42 @@ export default function Home() {
 			() => new furnaceObj(0, 0, false, 0, furnaceBurnTime)
 		)
 	);
+
+	const applySettings = () => {
+		// buat array kosong
+		const newFurnaces = Array.from(
+			{ length: furnace },
+			() => new furnaceObj(0, 0, false, 0, furnaceBurnTime)
+		);
+
+		// bagi fuel secara round robin
+		for (let i = 0; i < fuel; i++) {
+			const idx = i % furnace;
+			newFurnaces[idx].fuel += 1;
+		}
+
+		// bagi items secara round robin
+		for (let i = 0; i < items; i++) {
+			let idx = i % furnace;
+			if (fuel < furnace) {
+				idx = i % fuel;
+			}
+			// hanya masuk ketika ada fuel
+			newFurnaces[idx].item += 1;
+		}
+
+		// update state sekali saja
+		setFurnaces(newFurnaces);
+	};
+
+	function resetFurnaces() {
+		setFurnaces(
+			Array.from(
+				{ length: furnace },
+				() => new furnaceObj(0, 0, false, 0, furnaceBurnTime)
+			)
+		);
+	}
 
 	function setFurnaceItem(i, val) {
 		setFurnaces((prev) => {
@@ -81,13 +117,15 @@ export default function Home() {
 			return copy;
 		});
 	}
-
+	useEffect(() => {
+		setFurnaceBurnTime(furnaceDuration * 8);
+	}, [furnaceDuration]);
 	// set furnace round-robin
 	useEffect(() => {
 		// buat array kosong
 		const newFurnaces = Array.from(
 			{ length: furnace },
-			() => new furnaceObj(0, 0)
+			() => new furnaceObj(0, 0, false, 0, furnaceBurnTime)
 		);
 
 		// bagi fuel secara round robin
@@ -108,18 +146,18 @@ export default function Home() {
 
 		// update state sekali saja
 		setFurnaces(newFurnaces);
-	}, [furnace, items, fuel]);
+	}, []);
 
 	useEffect(() => {
 		if (!isSmelting) return;
 
-    let smeltedCount = 0;
+		let smeltedCount = 0;
 		// aktifkan semua furnace yang item > 0 dan fuel > 0
 		setFurnaces((prev) =>
 			prev.map((f) => ({
 				...f,
 				fuel: f.fuel > 0 ? f.fuel - 1 : 0,
-				active: f.item > 0 && f.fuel > 0,
+				active: f.fuel > 0,
 				progress: 0,
 				burnTime: furnaceBurnTime,
 			}))
@@ -129,32 +167,41 @@ export default function Home() {
 				const updated = prev.map((f) => {
 					if (!f.active) return f;
 
-					// 1. STOP jika burnTime habis
+					// 1. STOP jika fuel habis
 					if (f.burnTime <= 0) {
 						return {
 							...f,
-							active: false,
+							fuel: f.fuel > 0 ? f.fuel - 1 : 0,
+							burnTime: furnaceBurnTime,
 							progress: 0,
+              active: f.fuel > 0,
 						};
 					}
 
 					// 2. Jika progress selesai smelting 1 item
 					if (f.progress + 1 >= furnaceDuration) {
-            smeltedCount += 1;
+						smeltedCount += 1;
 						return {
 							...f,
 							item: f.item - 1,
 							progress: 0,
 							burnTime: f.burnTime - 1,
-							active: f.item - 1 > 0 && f.burnTime - 1 > 0,
+							active: f.item - 1 > 0,
 						};
 					}
-
+					// if (f.fuel <= 0) {
+					// 	return {
+					// 		...f,
+					// 		active: false,
+					// 		progress: 0,
+					// 	};
+					// }
 					// 3. Default
 					return {
 						...f,
 						progress: f.progress + 1,
 						burnTime: f.burnTime - 1,
+						// ketika b
 					};
 				});
 
@@ -165,8 +212,8 @@ export default function Home() {
 					// matikan smelting
 					setIsSmelting(false);
 
-          // update smeltedCount
-          setSmeltedCount(smeltedCount);
+					// update smeltedCount
+					setSmeltedCount(smeltedCount);
 				}
 
 				return updated;
@@ -177,53 +224,113 @@ export default function Home() {
 	}, [isSmelting, furnaceDuration]);
 
 	return (
-		<div className="grid place-items-center h-screen md:mx-80 bg-gray-800">
-			<div className="flex flex-wrap gap-3 mb-3">
-				{furnaces.map((furnaceObj, index) => (
-					<div
-						key={index}
-						className="relative pb-6 bg-white/30 border border-gray-300 rounded-lg shadow-lg backdrop-blur-sm"
-					>
-						<span className="absolute top-[-1] right-0 text-sm">
-							{index + 1}
-						</span>
-						<div className="px-6 pt-6 mb-3">
-							<span>{furnaceObj.item}</span>
-							<hr />
-							<span>{furnaceObj.fuel}</span>
-						</div>
+		<div className="flex">
+			<div className="p-4 bg-gray-900 text-white rounded-lg w-64 space-y-4 shadow-lg">
+				<h2 className="text-lg font-semibold">Furnace Settings</h2>
 
-						{isSmelting && furnaceObj.active && (
-							<div className="w-full h-1 bg-gray-200 rounded-full">
-								<div
-									className="h-full bg-green-500 rounded-full"
-									style={{
-										width: `${(furnaceObj.progress / furnaceDuration) * 100}%`,
-									}}
-								></div>
+				<div className="flex flex-col gap-3">
+					<label className="flex flex-col text-sm">
+						Jumlah Furnace
+						<input
+							type="number"
+							value={furnace}
+							onChange={(e) => setFurnace(Number(e.target.value))}
+							className="mt-1 p-2 rounded bg-gray-800 border border-gray-700"
+						/>
+					</label>
 
-								<div
-									className="h-full bg-red-500 rounded-full"
-									style={{
-										width: `${(furnaceObj.burnTime / furnaceBurnTime) * 100}%`,
-									}}
-								></div>
-							</div>
-						)}
-					</div>
-				))}
+					<label className="flex flex-col text-sm">
+						Jumlah Item
+						<input
+							type="number"
+							value={items}
+							onChange={(e) => setItems(Number(e.target.value))}
+							className="mt-1 p-2 rounded bg-gray-800 border border-gray-700"
+						/>
+					</label>
+
+					<label className="flex flex-col text-sm">
+						Jumlah Fuel
+						<input
+							type="number"
+							value={fuel}
+							onChange={(e) => setFuel(Number(e.target.value))}
+							className="mt-1 p-2 rounded bg-gray-800 border border-gray-700"
+						/>
+					</label>
+
+					<label className="flex flex-col text-sm">
+						Durasi Smelting (detik)
+						<input
+							type="number"
+							value={furnaceDuration}
+							onChange={(e) => setFurnaceDuration(Number(e.target.value))}
+							className="mt-1 p-2 rounded bg-gray-800 border border-gray-700"
+						/>
+					</label>
+				</div>
+
+				<button
+					className="w-full bg-green-600 hover:bg-green-700 p-2 rounded mt-2"
+					onClick={applySettings}
+				>
+					Apply
+				</button>
 			</div>
-			<div>
-				<span>Is smelting : {isSmelting ? "true" : "false"}</span>
-				<span>Cooked item : {smeltedCount}</span>
-				<div className="flex justify-center">
-					{/* Tombol aktifkan smelting */}
-					<button
-						className="bg-gray-600 active:bg-gray-700 cursor-pointer p-3 rounded-lg"
-						onClick={() => setIsSmelting(true)}
-					>
-						Run Furnace!
-					</button>
+
+			<div className="grid place-items-center w-full h-screen bg-gray-800">
+				<div className="flex flex-wrap gap-3 mb-3">
+					{furnaces.map((furnaceObj, index) => (
+						<div
+							key={index}
+							className="relative pb-6 bg-white/30 border border-gray-300 rounded-lg shadow-lg backdrop-blur-sm"
+						>
+							<span className="absolute top-[-1] right-0 text-sm">
+								{index + 1}
+							</span>
+							<div className="px-6 pt-6 mb-3">
+								<span>{furnaceObj.item}</span>
+								<hr />
+								<span>{furnaceObj.fuel}</span>
+							</div>
+
+							{isSmelting && furnaceObj.active && (
+								<div className="w-full h-1 bg-gray-200 rounded-full">
+									<div
+										className="h-full bg-green-500 rounded-full"
+										style={{
+											width: `${
+												(furnaceObj.progress / furnaceDuration) * 100
+											}%`,
+										}}
+									></div>
+
+									<div
+										className="h-full bg-red-500 rounded-full"
+										style={{
+											width: `${
+												(furnaceObj.burnTime / furnaceBurnTime) * 100
+											}%`,
+										}}
+									>
+									</div>
+								</div>
+							)}
+						</div>
+					))}
+				</div>
+				<div>
+					{/* <span>Is smelting : {isSmelting ? "true" : "false"}</span>
+					<span>Cooked item : {smeltedCount}</span> */}
+					<div className="flex justify-center">
+						{/* Tombol aktifkan smelting */}
+						<button
+							className="bg-gray-600 active:bg-gray-700 cursor-pointer p-3 rounded-lg"
+							onClick={() => setIsSmelting(true)}
+						>
+							Run Furnace!
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
